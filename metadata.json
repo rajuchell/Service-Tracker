@@ -1,5 +1,5 @@
 {
-  "name": "Bessenyaspa Entry",
-  "description": "A professional service entry and transaction tracking dashboard for Bessenyaspa staff and customer management.",
+  "name": "Service Tracker",
+  "description": "A professional service entry and transaction tracking dashboard for staff and customer management.",
   "requestFramePermissions": []
 }
