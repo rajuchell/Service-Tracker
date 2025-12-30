@@ -54,6 +54,7 @@ const App: React.FC = () => {
   const fetchData = async () => {
     setIsLoading(true);
     try {
+      // Fetch Therapists
       const { data: therapistData, error: tError } = await supabase
         .from('therapists')
         .select('name')
@@ -62,6 +63,7 @@ const App: React.FC = () => {
       if (tError) throw tError;
       setTherapists(therapistData.map(t => t.name));
 
+      // Fetch Today's Stats
       const today = new Date().toISOString().split('T')[0];
       const { data: entries, error: eError } = await supabase
         .from('service_entries')
@@ -176,10 +178,10 @@ const App: React.FC = () => {
       
       alert('Entry saved to Supabase successfully!');
       resetForm();
-      fetchData();
+      fetchData(); // Refresh stats
     } catch (error) {
       console.error('Submission error:', error);
-      alert('Failed to save entry.');
+      alert('Failed to save entry. Check console.');
     } finally {
       setIsSubmitting(false);
     }
@@ -195,20 +197,30 @@ const App: React.FC = () => {
       const { error } = await supabase
         .from('therapists')
         .insert([{ name: trimmed }]);
+
       if (error) throw error;
+
       setNewTherapist('');
       await fetchData();
+      alert(`Therapist "${trimmed}" saved.`);
     } catch (error: any) {
-      alert(error.code === '23505' ? 'Already exists.' : 'Error saving.');
+      if (error.code === '23505') alert('This therapist already exists.');
+      else console.error(error);
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const removeTherapist = async (name: string) => {
-    if (!window.confirm(`Remove ${name}?`)) return;
+    if (!window.confirm(`Are you sure you want to remove ${name}?`)) return;
+
     try {
-      await supabase.from('therapists').delete().eq('name', name);
+      const { error } = await supabase
+        .from('therapists')
+        .delete()
+        .eq('name', name);
+
+      if (error) throw error;
       await fetchData();
     } catch (error) {
       console.error(error);
@@ -226,50 +238,46 @@ const App: React.FC = () => {
     <div className="min-h-screen flex bg-background-light">
       {/* Sidebar */}
       <aside className="w-20 lg:w-64 border-r border-border-light bg-surface-light flex flex-col sticky top-0 h-screen z-50 transition-all duration-300">
-        {/* Header - Aligned Center when collapsed, Start when expanded */}
         <div className="p-4 lg:p-6 border-b border-border-light flex items-center justify-center lg:justify-start gap-3">
-          <div className="flex items-center justify-center size-10 rounded-xl bg-primary/20 text-primary-dark shrink-0">
-            <span className="material-symbols-outlined font-bold">grid_view</span>
+          <div className="flex items-center justify-center size-10 rounded-full bg-primary/20 text-primary-dark shrink-0">
+            <span className="material-symbols-outlined">grid_view</span>
           </div>
-          <h1 className="text-xl font-black tracking-tight text-text-main-light hidden lg:block overflow-hidden whitespace-nowrap">ServiceLog</h1>
+          <h1 className="text-xl font-black tracking-tight text-text-main-light hidden lg:block overflow-hidden whitespace-nowrap">Service Tracker</h1>
         </div>
         
-        {/* Nav - Center aligned buttons in w-20, Start aligned in w-64 */}
         <nav className="flex-1 p-3 flex flex-col gap-2">
           <button 
             onClick={() => setCurrentView('entry')}
-            className={`flex items-center justify-center lg:justify-start gap-3 w-full px-0 lg:px-4 py-3 rounded-xl transition-all ${
+            className={`flex items-center justify-center lg:justify-start gap-3 px-4 py-3 rounded-xl transition-all ${
               currentView === 'entry' 
-                ? 'bg-primary/10 text-primary-dark font-black' 
+                ? 'bg-primary/10 text-primary-dark font-bold' 
                 : 'text-text-sec-light hover:bg-black/5'
             }`}
           >
-            <span className="material-symbols-outlined shrink-0">edit_document</span>
-            <span className="hidden lg:block text-sm font-bold">New Entry</span>
+            <span className="material-symbols-outlined">edit_document</span>
+            <span className="hidden lg:block">Entry</span>
           </button>
-          
           <button 
             onClick={() => setCurrentView('setup')}
-            className={`flex items-center justify-center lg:justify-start gap-3 w-full px-0 lg:px-4 py-3 rounded-xl transition-all ${
+            className={`flex items-center justify-center lg:justify-start gap-3 px-4 py-3 rounded-xl transition-all ${
               currentView === 'setup' 
-                ? 'bg-primary/10 text-primary-dark font-black' 
+                ? 'bg-primary/10 text-primary-dark font-bold' 
                 : 'text-text-sec-light hover:bg-black/5'
             }`}
           >
-            <span className="material-symbols-outlined shrink-0">settings</span>
-            <span className="hidden lg:block text-sm font-bold">Staff Setup</span>
+            <span className="material-symbols-outlined">settings</span>
+            <span className="hidden lg:block">Setup</span>
           </button>
         </nav>
 
-        {/* Footer Profile - Center aligned in w-20, Start aligned in w-64 */}
         <div className="p-4 border-t border-border-light">
           <div className="flex items-center justify-center lg:justify-start gap-3">
-            <div className="size-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 shrink-0">
-              <span className="material-symbols-outlined">account_circle</span>
-            </div>
+            <div className="bg-center bg-no-repeat bg-cover rounded-full size-10 ring-2 ring-primary/20 shrink-0"
+              style={{ backgroundImage: 'url("https://lh3.googleusercontent.com/aida-public/AB6AXuA32v4b3mnIbuqyBQm-jX31YU9-yeAz-U5bZnAfq2ms6v0f5s4UjdxseRgADGm-gqc5sZJyUMQ81cnKG9LEyelFVancavFSZG9oqx8YYSRJFzuZnoYCPSljv2QE-yi3dtb-y0maTe53HWirA6lMC8DfYmpKxxS4Q114FhEug5SGA5i2WKTr1fxsljYgbKkHsE6o1qS4FjKr5Vnp4qEgOknEOBeVBuR5KlMFGB0cgD8520_tAzF4LT93nMu2Ei9eMEjL6zunstSV5TQ")' }}
+            />
             <div className="hidden lg:block overflow-hidden">
-              <p className="text-xs font-black text-text-main-light truncate">Administrator</p>
-              <p className="text-[10px] text-text-sec-light font-bold truncate uppercase tracking-widest">Active Branch</p>
+              <p className="text-xs font-bold truncate">Jane Doe</p>
+              <p className="text-[10px] text-text-sec-light truncate uppercase tracking-widest">Admin</p>
             </div>
           </div>
         </div>
@@ -277,148 +285,357 @@ const App: React.FC = () => {
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col h-screen overflow-y-auto">
-        <header className="sticky top-0 z-40 w-full border-b border-border-light bg-surface-light/80 backdrop-blur-md px-8 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2 text-sm font-bold text-text-sec-light">
-            <span className="material-symbols-outlined text-[18px]">calendar_today</span>
+        {/* Top Header */}
+        <header className="sticky top-0 z-40 w-full border-b border-border-light bg-surface-light/80 backdrop-blur-md px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-2 text-sm font-medium text-text-sec-light">
+            <span className="material-symbols-outlined text-[18px]">schedule</span>
             <span>{formattedDate} • {formattedTime}</span>
           </div>
           <div className="flex items-center gap-4">
-            {isLoading && <div className="text-[10px] text-primary-dark font-black animate-pulse uppercase tracking-widest">Syncing Cloud</div>}
+            {isLoading && <div className="text-xs text-primary-dark font-bold animate-pulse">Syncing...</div>}
+            <button className="size-10 rounded-full hover:bg-black/5 flex items-center justify-center text-text-sec-light">
+              <span className="material-symbols-outlined">notifications</span>
+            </button>
             <div className="h-6 w-px bg-border-light"></div>
             <div className="text-right">
-              <p className="text-sm font-black text-text-main-light uppercase tracking-tighter">Main Branch #01</p>
+              <p className="text-sm font-bold leading-none">Main Spa Branch</p>
+              <p className="text-xs text-text-sec-light mt-1">Supabase Cloud Connected</p>
             </div>
           </div>
         </header>
 
-        <main className="p-8 max-w-5xl mx-auto w-full">
-          {currentView === 'entry' ? (
-            <div className="space-y-8 animate-in fade-in duration-500">
-              <div className="flex flex-col gap-1">
-                <h2 className="text-3xl font-black text-slate-900 tracking-tight">Daily Entry</h2>
-                <p className="text-slate-500 font-medium">Record new service transactions and payment split.</p>
+        <main className="p-6 md:p-10 flex flex-col items-center">
+          <div className="w-full max-w-5xl">
+            {currentView === 'entry' ? (
+              <div className="space-y-6 animate-in fade-in duration-500">
+                <div className="bg-surface-light rounded-2xl shadow-sm border border-border-light overflow-hidden">
+                  <form onSubmit={handleSubmit} className="p-6 md:p-8 grid grid-cols-1 md:grid-cols-12 gap-x-6 gap-y-8">
+                    {/* Section 1: Customer Details */}
+                    <div className="col-span-1 md:col-span-12">
+                      <h3 className="text-lg font-bold text-text-main-light mb-4 flex items-center gap-2">
+                        <span className="flex items-center justify-center size-6 rounded-full bg-text-main-light text-surface-light text-xs font-bold">1</span>
+                        Customer Details
+                      </h3>
+                    </div>
+
+                    <div className="col-span-1 md:col-span-3">
+                      <label className="block text-sm font-semibold text-text-main-light mb-2">Bill No <span className="text-red-500">*</span></label>
+                      <input
+                        name="billNo"
+                        value={formData.billNo}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-3 bg-background-light border border-border-light rounded-lg text-text-main-light placeholder-text-sec-light focus:ring-2 focus:ring-primary focus:border-transparent transition-all outline-none"
+                        placeholder="B-001"
+                        required
+                        type="text"
+                      />
+                    </div>
+
+                    <div className="col-span-1 md:col-span-5">
+                      <label className="block text-sm font-semibold text-text-main-light mb-2">Customer Name <span className="text-red-500">*</span></label>
+                      <input
+                        name="customerName"
+                        value={formData.customerName}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-3 bg-background-light border border-border-light rounded-lg text-text-main-light placeholder-text-sec-light focus:ring-2 focus:ring-primary focus:border-transparent transition-all outline-none"
+                        placeholder="Full Name"
+                        required
+                        type="text"
+                      />
+                    </div>
+
+                    <div className="col-span-1 md:col-span-4">
+                      <label className="block text-sm font-semibold text-text-main-light mb-2">Phone No <span className="text-red-500">*</span></label>
+                      <input
+                        name="phoneNo"
+                        value={formData.phoneNo}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-3 bg-background-light border border-border-light rounded-lg text-text-main-light placeholder-text-sec-light focus:ring-2 focus:ring-primary focus:border-transparent transition-all outline-none"
+                        placeholder="Mobile Number"
+                        required
+                        type="tel"
+                      />
+                    </div>
+
+                    <div className="col-span-1 md:col-span-12 border-t border-border-light my-2"></div>
+
+                    {/* Section 2: Staff & Timing */}
+                    <div className="col-span-1 md:col-span-12">
+                      <h3 className="text-lg font-bold text-text-main-light mb-4 flex items-center gap-2">
+                        <span className="flex items-center justify-center size-6 rounded-full bg-text-main-light text-surface-light text-xs font-bold">2</span>
+                        Staff & Timing
+                      </h3>
+                    </div>
+
+                    <div className="col-span-1 md:col-span-6">
+                      <label className="block text-sm font-semibold text-text-main-light mb-2">Therapist / Staff <span className="text-red-500">*</span></label>
+                      <div className="relative">
+                        <select
+                          name="staffName"
+                          value={formData.staffName}
+                          onChange={handleInputChange}
+                          className="w-full px-4 py-3 bg-background-light border border-border-light rounded-lg text-text-main-light focus:ring-2 focus:ring-primary focus:border-transparent transition-all outline-none appearance-none cursor-pointer"
+                          required
+                        >
+                          <option value="">-- Select a Therapist --</option>
+                          {therapists.map(name => (
+                            <option key={name} value={name}>{name}</option>
+                          ))}
+                        </select>
+                        <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-text-sec-light">
+                          expand_more
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="col-span-1 md:col-span-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <label className="block text-sm font-bold text-[#1e293b]">In Time <span className="text-red-500">*</span></label>
+                        <button 
+                          type="button" 
+                          onClick={setInTimeNow}
+                          className="flex items-center gap-1.5 px-3 py-1 rounded-md bg-[#e6ffed] text-[#00c853] font-black text-[11px] tracking-wide uppercase hover:bg-[#d4f7e0] transition-colors"
+                        >
+                          <span className="material-symbols-outlined text-[14px]">schedule</span>
+                          NOW
+                        </button>
+                      </div>
+                      <div 
+                        onClick={() => inTimeRef.current?.showPicker?.()}
+                        className="group relative flex items-center justify-between w-full h-[56px] px-5 bg-[#f8faf9] border border-[#e2e8f0] rounded-xl cursor-pointer hover:border-primary transition-all shadow-sm"
+                      >
+                        <span className="text-xl font-medium text-[#1e293b] tabular-nums">
+                          {formData.inTime || "00:00"}
+                        </span>
+                        <span className="material-symbols-outlined text-[#e2e8f0] group-hover:text-primary transition-colors">
+                          schedule
+                        </span>
+                        <input
+                          ref={inTimeRef}
+                          name="inTime"
+                          value={formData.inTime}
+                          onChange={handleInputChange}
+                          className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                          required
+                          type="time"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="col-span-1 md:col-span-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <label className="block text-sm font-bold text-[#1e293b]">Out Time</label>
+                        <button 
+                          type="button" 
+                          onClick={setOutTimeNow}
+                          className="flex items-center gap-1.5 px-3 py-1 rounded-md bg-[#e6ffed] text-[#00c853] font-black text-[11px] tracking-wide uppercase hover:bg-[#d4f7e0] transition-colors"
+                        >
+                          <span className="material-symbols-outlined text-[14px]">schedule</span>
+                          NOW
+                        </button>
+                      </div>
+                      <div 
+                        onClick={() => outTimeRef.current?.showPicker?.()}
+                        className="group relative flex items-center justify-between w-full h-[56px] px-5 bg-[#f8faf9] border border-[#e2e8f0] rounded-xl cursor-pointer hover:border-primary transition-all shadow-sm"
+                      >
+                        <span className="text-xl font-medium text-[#1e293b] tabular-nums">
+                          {formData.outTime || "00:00"}
+                        </span>
+                        <span className="material-symbols-outlined text-[#e2e8f0] group-hover:text-primary transition-colors">
+                          schedule
+                        </span>
+                        <input
+                          ref={outTimeRef}
+                          name="outTime"
+                          value={formData.outTime}
+                          onChange={handleInputChange}
+                          className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                          type="time"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="col-span-1 md:col-span-12 border-t border-border-light my-2"></div>
+
+                    {/* Section 3: Payment */}
+                    <div className="col-span-1 md:col-span-12 flex flex-wrap items-center justify-between gap-4">
+                      <h3 className="text-lg font-bold text-text-main-light mb-0 flex items-center gap-2">
+                        <span className="flex items-center justify-center size-6 rounded-full bg-text-main-light text-surface-light text-xs font-bold">3</span>
+                        Payment Breakdown
+                      </h3>
+                      <div className="px-4 py-1.5 bg-[#e6ffed] rounded-lg border border-[#00c853]/20 flex items-center gap-3">
+                        <span className="text-[11px] font-black text-[#00c853] uppercase tracking-wide">TOTAL:</span>
+                        <span className="text-xl font-black text-text-main-light tabular-nums">₹{totalReceived.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                      </div>
+                    </div>
+
+                    <div className="col-span-1 md:col-span-3">
+                      <label className="block text-xs font-bold text-text-sec-light uppercase tracking-wider mb-2">Cash</label>
+                      <div className="relative">
+                        <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none font-bold text-text-sec-light">₹</span>
+                        <input
+                          name="cash"
+                          value={formData.payment.cash || ''}
+                          onChange={handlePaymentChange}
+                          className="w-full pl-8 pr-4 py-3 bg-background-light border border-border-light rounded-lg focus:ring-2 focus:ring-primary outline-none"
+                          placeholder="0.00"
+                          type="number"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="col-span-1 md:col-span-3">
+                      <label className="block text-xs font-bold text-text-sec-light uppercase tracking-wider mb-2">Card</label>
+                      <div className="relative">
+                        <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none font-bold text-text-sec-light">₹</span>
+                        <input
+                          name="card"
+                          value={formData.payment.card || ''}
+                          onChange={handlePaymentChange}
+                          className="w-full pl-8 pr-4 py-3 bg-background-light border border-border-light rounded-lg focus:ring-2 focus:ring-primary outline-none"
+                          placeholder="0.00"
+                          type="number"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="col-span-1 md:col-span-3">
+                      <label className="block text-xs font-bold text-text-sec-light uppercase tracking-wider mb-2">GPay</label>
+                      <div className="relative">
+                        <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none font-bold text-text-sec-light">₹</span>
+                        <input
+                          name="gpay"
+                          value={formData.payment.gpay || ''}
+                          onChange={handlePaymentChange}
+                          className="w-full pl-8 pr-4 py-3 bg-background-light border border-border-light rounded-lg focus:ring-2 focus:ring-primary outline-none"
+                          placeholder="0.00"
+                          type="number"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="col-span-1 md:col-span-3">
+                      <label className="block text-xs font-bold text-text-sec-light uppercase tracking-wider mb-2">UPI</label>
+                      <div className="relative">
+                        <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none font-bold text-text-sec-light">₹</span>
+                        <input
+                          name="upi"
+                          value={formData.payment.upi || ''}
+                          onChange={handlePaymentChange}
+                          className="w-full pl-8 pr-4 py-3 bg-background-light border border-border-light rounded-lg focus:ring-2 focus:ring-primary outline-none"
+                          placeholder="0.00"
+                          type="number"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="col-span-1 md:col-span-12">
+                      <label className="block text-sm font-semibold text-text-main-light mb-2">Remarks</label>
+                      <textarea
+                        name="remarks"
+                        value={formData.remarks}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-3 bg-background-light border border-border-light rounded-lg text-text-main-light focus:ring-2 focus:ring-primary outline-none min-h-[100px]"
+                        placeholder="Additional details..."
+                      />
+                    </div>
+
+                    <div className="col-span-1 md:col-span-12 pt-6 flex items-center justify-end gap-6">
+                      <button 
+                        type="button" 
+                        onClick={resetForm} 
+                        className="text-sm font-bold text-text-sec-light hover:text-text-main-light transition-colors"
+                      >
+                        Reset
+                      </button>
+                      <button 
+                        type="submit" 
+                        disabled={isSubmitting}
+                        className="px-12 py-4 bg-[#13ec5b] text-white font-black rounded-xl shadow-lg shadow-[#13ec5b]/20 hover:bg-[#0eb846] active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                      >
+                        {isSubmitting ? <span className="material-symbols-outlined animate-spin">sync</span> : null}
+                        {isSubmitting ? 'SAVING...' : 'SUBMIT ENTRY'}
+                      </button>
+                    </div>
+                  </form>
+                </div>
               </div>
+            ) : (
+              <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <div className="flex flex-col gap-2">
+                  <h2 className="text-3xl md:text-4xl font-black tracking-tight text-text-main-light">System Setup</h2>
+                  <p className="text-text-sec-light text-base">Managing data in Supabase 'therapists' table.</p>
+                </div>
 
-              <div className="bg-surface-light rounded-3xl shadow-sm border border-border-light overflow-hidden">
-                <form onSubmit={handleSubmit} className="p-8 grid grid-cols-1 md:grid-cols-12 gap-x-6 gap-y-8">
-                  <div className="col-span-1 md:col-span-3">
-                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Bill No <span className="text-red-500">*</span></label>
-                    <input name="billNo" value={formData.billNo} onChange={handleInputChange} className="w-full px-4 py-3 bg-background-light border border-border-light rounded-xl font-bold placeholder-slate-300 focus:ring-2 focus:ring-primary outline-none" placeholder="B-001" required />
-                  </div>
-
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+                  {/* Add New Therapist */}
                   <div className="col-span-1 md:col-span-5">
-                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Customer Name <span className="text-red-500">*</span></label>
-                    <input name="customerName" value={formData.customerName} onChange={handleInputChange} className="w-full px-4 py-3 bg-background-light border border-border-light rounded-xl font-bold placeholder-slate-300 focus:ring-2 focus:ring-primary outline-none" placeholder="Full Name" required />
-                  </div>
-
-                  <div className="col-span-1 md:col-span-4">
-                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Phone No</label>
-                    <input name="phoneNo" value={formData.phoneNo} onChange={handleInputChange} className="w-full px-4 py-3 bg-background-light border border-border-light rounded-xl font-bold placeholder-slate-300 focus:ring-2 focus:ring-primary outline-none" placeholder="9876543210" type="tel" />
-                  </div>
-
-                  <div className="col-span-1 md:col-span-6">
-                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Select Therapist <span className="text-red-500">*</span></label>
-                    <select name="staffName" value={formData.staffName} onChange={handleInputChange} className="w-full px-4 py-3 bg-background-light border border-border-light rounded-xl font-bold focus:ring-2 focus:ring-primary outline-none appearance-none cursor-pointer" required>
-                      <option value="">-- Select Staff --</option>
-                      {therapists.map(name => <option key={name} value={name}>{name}</option>)}
-                    </select>
-                  </div>
-
-                  <div className="col-span-1 md:col-span-3">
-                    <div className="flex items-center justify-between mb-2">
-                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">In Time</label>
-                      <button type="button" onClick={setInTimeNow} className="px-2 py-0.5 bg-[#e6ffed] text-[#00c853] font-black text-[9px] rounded-md uppercase">NOW</button>
-                    </div>
-                    <div className="relative flex items-center justify-between w-full h-[52px] px-4 bg-background-light border border-border-light rounded-xl">
-                      <span className="font-bold text-slate-900">{formData.inTime || "00:00"}</span>
-                      <input name="inTime" value={formData.inTime} onChange={handleInputChange} className="absolute inset-0 opacity-0 cursor-pointer" type="time" required />
-                    </div>
-                  </div>
-
-                  <div className="col-span-1 md:col-span-3">
-                    <div className="flex items-center justify-between mb-2">
-                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Out Time</label>
-                      <button type="button" onClick={setOutTimeNow} className="px-2 py-0.5 bg-[#e6ffed] text-[#00c853] font-black text-[9px] rounded-md uppercase">NOW</button>
-                    </div>
-                    <div className="relative flex items-center justify-between w-full h-[52px] px-4 bg-background-light border border-border-light rounded-xl">
-                      <span className="font-bold text-slate-900">{formData.outTime || "00:00"}</span>
-                      <input name="outTime" value={formData.outTime} onChange={handleInputChange} className="absolute inset-0 opacity-0 cursor-pointer" type="time" />
-                    </div>
-                  </div>
-
-                  <div className="col-span-1 md:col-span-12 pt-4 flex items-center justify-between border-t border-slate-100 mt-4">
-                    <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Payment Breakdown</h3>
-                    <div className="bg-[#e6ffed] px-4 py-2 rounded-xl border border-[#00c853]/10">
-                      <span className="text-[10px] font-black text-[#00c853] uppercase tracking-widest mr-3">Collection:</span>
-                      <span className="text-xl font-black text-slate-900">₹{totalReceived.toLocaleString('en-IN')}</span>
-                    </div>
-                  </div>
-
-                  <div className="col-span-1 md:col-span-3">
-                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Cash</label>
-                    <input name="cash" value={formData.payment.cash || ''} onChange={handlePaymentChange} className="w-full px-4 py-3 bg-background-light border border-border-light rounded-xl font-bold focus:ring-2 focus:ring-primary outline-none" placeholder="0" type="number" />
-                  </div>
-                  <div className="col-span-1 md:col-span-3">
-                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Card</label>
-                    <input name="card" value={formData.payment.card || ''} onChange={handlePaymentChange} className="w-full px-4 py-3 bg-background-light border border-border-light rounded-xl font-bold focus:ring-2 focus:ring-primary outline-none" placeholder="0" type="number" />
-                  </div>
-                  <div className="col-span-1 md:col-span-3">
-                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">GPay</label>
-                    <input name="gpay" value={formData.payment.gpay || ''} onChange={handlePaymentChange} className="w-full px-4 py-3 bg-background-light border border-border-light rounded-xl font-bold focus:ring-2 focus:ring-primary outline-none" placeholder="0" type="number" />
-                  </div>
-                  <div className="col-span-1 md:col-span-3">
-                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">UPI</label>
-                    <input name="upi" value={formData.payment.upi || ''} onChange={handlePaymentChange} className="w-full px-4 py-3 bg-background-light border border-border-light rounded-xl font-bold focus:ring-2 focus:ring-primary outline-none" placeholder="0" type="number" />
-                  </div>
-
-                  <div className="col-span-1 md:col-span-12 pt-6 flex items-center justify-end gap-6">
-                    <button type="button" onClick={resetForm} className="text-xs font-black text-slate-400 uppercase hover:text-slate-600 transition-colors">Clear</button>
-                    <button type="submit" disabled={isSubmitting} className="px-12 py-4 bg-primary text-white font-black rounded-2xl shadow-xl shadow-primary/20 hover:bg-primary-dark active:scale-95 transition-all disabled:opacity-50">
-                      {isSubmitting ? 'SAVING...' : 'SAVE RECORD'}
-                    </button>
-                  </div>
-                </form>
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-8 animate-in fade-in duration-500">
-              <div className="flex flex-col gap-1">
-                <h2 className="text-3xl font-black text-slate-900 tracking-tight">Staff Management</h2>
-                <p className="text-slate-500 font-medium">Update the list of therapists available in the system.</p>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-12 gap-8">
-                <div className="col-span-1 md:col-span-5">
-                  <div className="bg-surface-light rounded-3xl border border-border-light p-8 shadow-sm">
-                    <h3 className="text-sm font-black text-slate-900 mb-6 uppercase tracking-widest">Register Staff</h3>
-                    <form onSubmit={handleAddTherapist} className="space-y-4">
-                      <input value={newTherapist} onChange={(e) => setNewTherapist(e.target.value)} className="w-full px-4 py-3 bg-background-light border border-border-light rounded-xl font-bold outline-none" placeholder="Enter Full Name" required />
-                      <button type="submit" disabled={isSubmitting} className="w-full py-4 bg-primary text-white font-black rounded-xl shadow-lg shadow-primary/20 hover:bg-primary-dark transition-all disabled:opacity-50 uppercase text-xs tracking-widest">Add to Database</button>
-                    </form>
-                  </div>
-                </div>
-
-                <div className="col-span-1 md:col-span-7">
-                  <div className="bg-surface-light rounded-3xl border border-border-light shadow-sm overflow-hidden">
-                    <div className="px-8 py-5 border-b border-slate-100 flex items-center justify-between">
-                      <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Active Roster ({therapists.length})</h3>
-                    </div>
-                    <div className="divide-y divide-slate-50 max-h-[480px] overflow-y-auto">
-                      {therapists.map((name) => (
-                        <div key={name} className="px-8 py-4 flex items-center justify-between group hover:bg-slate-50 transition-colors">
-                          <div className="flex items-center gap-4">
-                            <div className="size-10 rounded-full bg-primary/10 text-primary-dark flex items-center justify-center font-black text-sm">{name.charAt(0)}</div>
-                            <span className="font-bold text-slate-700">{name}</span>
-                          </div>
-                          <button onClick={() => removeTherapist(name)} className="size-9 rounded-xl text-red-400 hover:bg-red-50 flex items-center justify-center transition-all opacity-0 group-hover:opacity-100"><span className="material-symbols-outlined text-[20px]">delete</span></button>
+                    <div className="bg-surface-light rounded-2xl border border-border-light p-6 shadow-sm">
+                      <h3 className="text-lg font-bold text-text-main-light mb-6 flex items-center gap-2">
+                        <span className="material-symbols-outlined text-primary-dark">person_add</span>
+                        Add New Therapist
+                      </h3>
+                      <form onSubmit={handleAddTherapist} className="space-y-4">
+                        <div>
+                          <label className="block text-sm font-semibold text-text-main-light mb-2">Therapist Name</label>
+                          <input 
+                            value={newTherapist}
+                            onChange={(e) => setNewTherapist(e.target.value)}
+                            className="w-full px-4 py-3 bg-background-light border border-border-light rounded-lg focus:ring-2 focus:ring-primary outline-none"
+                            placeholder="e.g. Robert Wilson"
+                            required
+                          />
                         </div>
-                      ))}
+                        <button 
+                          type="submit" 
+                          disabled={isSubmitting}
+                          className="w-full py-3 bg-primary text-white font-bold rounded-xl shadow-lg shadow-primary/20 hover:bg-primary-dark transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                        >
+                          {isSubmitting ? <span className="material-symbols-outlined animate-spin text-[20px]">sync</span> : <span className="material-symbols-outlined text-[20px]">save</span>}
+                          {isSubmitting ? 'Saving...' : 'Save Therapist'}
+                        </button>
+                      </form>
+                    </div>
+                  </div>
+
+                  {/* Therapist List */}
+                  <div className="col-span-1 md:col-span-7">
+                    <div className="bg-surface-light rounded-2xl border border-border-light shadow-sm overflow-hidden">
+                      <div className="px-6 py-4 border-b border-border-light flex items-center justify-between">
+                        <h3 className="font-bold text-text-main-light">Active Therapists ({therapists.length})</h3>
+                        {isLoading && <span className="material-symbols-outlined animate-spin text-text-sec-light">sync</span>}
+                      </div>
+                      <div className="divide-y divide-border-light max-h-[400px] overflow-y-auto">
+                        {therapists.length > 0 ? (
+                          therapists.map((name) => (
+                            <div key={name} className="px-6 py-4 flex items-center justify-between group hover:bg-background-light transition-colors">
+                              <div className="flex items-center gap-3">
+                                <div className="size-8 rounded-full bg-primary/10 text-primary-dark flex items-center justify-center font-bold text-xs">
+                                  {name.charAt(0)}
+                                </div>
+                                <span className="font-semibold text-text-main-light">{name}</span>
+                              </div>
+                              <button 
+                                onClick={() => removeTherapist(name)}
+                                className="size-8 rounded-lg text-red-400 hover:bg-red-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all"
+                              >
+                                <span className="material-symbols-outlined text-[20px]">delete</span>
+                              </button>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="p-10 text-center text-text-sec-light">
+                            <span className="material-symbols-outlined text-4xl mb-2 opacity-20">no_accounts</span>
+                            <p>{isLoading ? 'Loading...' : 'No therapists found.'}</p>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </main>
       </div>
     </div>
